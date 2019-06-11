@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn import svm
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -20,10 +21,12 @@ X_rus, y_rus = rus.fit_sample(X, y)
 id_rus=rus.sample_indices_
 def train_ub(X,y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
-    model = XGBClassifier()
+    model = svm.SVC(gamma='scale')
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
+
+    print('cc')
     return accuracy
 
 lam=2
@@ -40,6 +43,7 @@ for k in range(int((len(id_rus)/5)-1)):
     y_c=y.drop(y.index[id_rus[0:c]])
     print(y_c.value_counts())
     acc=train_ub(X_c,y_c)
+
     F_s.append(acc)
 
     S_D.append([X_c,y_c])
