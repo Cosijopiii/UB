@@ -6,6 +6,7 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
+from scipy.spatial import distance
 import math
 
 data_size = 260
@@ -29,19 +30,126 @@ def train_ub(X,y):
     accuracy = accuracy_score(y_test, y_pred)
     return accuracy
 
+def undersampling(X, y, items):
+
+    X_u = X.drop(X.index[items])
+    y_u = y.drop(y.index[items])
+
+    return (X_u, y_u)
+
+def nearest(p, q):
+    d = float("inf")
+    n_item = None
+    for i in range(len(q)):
+        item = q.iloc[i]
+        c_d = distance.euclidean(item, p)
+        if d > c_d:
+            d = c_d
+            n_item = item
+    return n_item
+
+def average(p, q):
+    new_item = p.copy(deep = True)
+    for i, v, w in zip(range(len(p)), p, q):
+        new_item[i] = float(int((v + w) / 2))
+    return new_item
+
+# Function to insert row in the dataframe 
+def insert_row(row_number, df, row_value): 
+    # Starting value of upper half 
+    start_upper = 0
+
+    # End value of upper half 
+    end_upper = row_number 
+
+    # Start value of lower half 
+    start_lower = row_number 
+
+    # End value of lower half 
+    end_lower = df.shape[0] 
+
+    # Create a list of upper_half index 
+    upper_half = [*range(start_upper, end_upper, 1)] 
+
+    # Create a list of lower_half index 
+    lower_half = [*range(start_lower, end_lower, 1)] 
+
+    # Increment the value of lower half by 1 
+    lower_half = [x.__add__(1) for x in lower_half] 
+
+    # Combine the two lists 
+    index_ = upper_half + lower_half 
+
+    # Update the index of the dataframe 
+    df.index = index_ 
+
+    # Insert a row at the end 
+    df.loc[row_number] = row_value 
+    
+    # Sort the index labels 
+    df = df.sort_index() 
+
+    # return the dataframe 
+    return df 
+
+def oversampling(X, y, items):
+
+    X_o = X.copy(deep = True)
+    y_o = y.copy(deep = True)
+
+    for item in items:
+        n_item = nearest(X.iloc[item], X)
+        new_item = average(X.iloc[item], n_item)
+        X_o = insert_row(item+1, X_o, new_item)
+        y_o = insert_row(item+1, y_o, y_o[item])
+
+    return (X_o, y_o)
+
 lam = 2
 F_s=[]
 S_D=[]
 SOL_D=[]
 epsilon=1
+st = "over"
 
 for k in range(int(data_size/5)):
 
 
-    items = np.random.choice(data_size, k * step_size, replace=False)
+    X_c = None
+    y_c = None
 
-    X_c = X.drop(X.index[items])
-    y_c = y.drop(y.index[items])
+    a_min = y.loc[y == 0].index[0]
+    a_max = y.loc[y == 0].index[-1]
+    b_min = y.loc[y == 1].index[0]
+    b_max = y.loc[y == 1].index[-1]
+
+    u_items = None
+    o_items = None
+
+    a_len = a_max - a_min
+    b_len = b_max - b_min
+
+    maj_max = a_max if a_len > b_len else b_max
+    maj_min = a_min if a_len > b_len else b_min
+
+    min_max = b_max if a_len > b_len else a_max
+    min_min = b_min if a_len > b_len else a_min
+
+    if st == "under":
+        if k * step_size < (maj_max - maj_min):
+            u_items = np.random.choice(np.arange(maj_min, maj_max), k * step_size, replace=False)
+        else:
+            break
+    else:
+        if k * step_size < (min_max - min_min):
+            o_items = np.random.choice(np.arange(min_min, min_max), k * step_size, replace=False)
+        else:
+            break
+
+    if st == "under":
+        X_c, y_c = undersampling(X, y, u_items)
+    else:
+        X_c, y_c = oversampling(X, y, o_items)
 
     acc = train_ub(X_c,y_c)
 
@@ -58,6 +166,7 @@ for k in range(int(data_size/5)):
         if R < epsilon:
             SOL_D.append((S_D[k-1], F_s[k-1]))
 
-for s in sorted(SOL_D, key=lambda x: x[1]):
+#for s in sorted(SOL_D, key=lambda x: x[1]):
+for s in SOL_D:
     print(s[1])
     print(s[0][1].value_counts())
