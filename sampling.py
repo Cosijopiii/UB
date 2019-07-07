@@ -2,15 +2,17 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import svm
+import sns
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
 from scipy.spatial import distance
 import math
+import PS
 
 data_size = 260
-step_size = 5
+step_size = 1
 
 train_data = pd.read_csv('datasets/heart-disease-uci/heart.csv')
 
@@ -21,21 +23,39 @@ labels = train_data.columns[:-1]
 X = train_data[labels]
 y = train_data['target']
 
+def plot_2d_space(X, y, label='Classes'):
+    colors = ['#1F77B4', '#FF7F0E']
+    markers = ['o', 's']
+    for l, c, m in zip(np.unique(y), colors, markers):
+        plt.scatter(
+            X[y==l, 0],
+            X[y==l, 1],
+            c=c, label=l, marker=m
+        )
+    plt.title(label)
+    plt.legend(loc='upper right')
+    plt.show()
+
 def train_ub(X,y):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X)
+    plot_2d_space(X_pca, y, 'Imbalanced dataset (2 PCA components)')
     model = svm.SVC(gamma='scale')
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     return accuracy
 
+
 def undersampling(X, y, items):
 
     X_u = X.drop(X.index[items])
     y_u = y.drop(y.index[items])
 
-    return (X_u, y_u)
+    return X_u, y_u
 
 def nearest(p, q):
     d = float("inf")
@@ -110,9 +130,9 @@ F_s=[]
 S_D=[]
 SOL_D=[]
 epsilon=1
-st = "over"
+st = "under"
 
-for k in range(int(data_size/5)):
+for k in range(int(data_size)):
 
 
     X_c = None
@@ -154,7 +174,6 @@ for k in range(int(data_size/5)):
     acc = train_ub(X_c,y_c)
 
     F_s.append(acc)
-
     S_D.append([X_c,y_c])
     if len(F_s)-lam > 0:
         sum_temp=0
@@ -163,10 +182,16 @@ for k in range(int(data_size/5)):
                     d = d*d
                     sum_temp = sum_temp+d
         R = math.sqrt(sum_temp)
-        if R < epsilon:
+
+        if R < 0.01:
             SOL_D.append((S_D[k-1], F_s[k-1]))
 
 #for s in sorted(SOL_D, key=lambda x: x[1]):
+plotarr=[]
 for s in SOL_D:
     print(s[1])
+    plotarr.append(s[1])
     print(s[0][1].value_counts())
+
+plt.plot(plotarr) # plotting by columns
+plt.show()
