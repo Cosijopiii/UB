@@ -11,17 +11,24 @@ from scipy.spatial import distance
 import math
 import PS
 
-data_size = 260
-step_size = 1
+# data_size = 260
+step_size = 5
+# train_data = pd.read_csv('datasets/heart-disease-uci/heart.csv')
+#
+# train_data = train_data[0:data_size]
+#
+# labels = train_data.columns[:-1]
+#
+# X = train_data[labels]
+# y = train_data['target']
+#
 
-train_data = pd.read_csv('datasets/heart-disease-uci/heart.csv')
-
-train_data = train_data[0:data_size]
-
-labels = train_data.columns[:-1]
-
-X = train_data[labels]
-y = train_data['target']
+# df=PS.genData(200,1000,1,0)
+# data_size=1500
+# d=df.columns[:2]
+# co=df.columns[2]
+# X = df[d]
+# y = df[co]
 
 def plot_2d_space(X, y, label='Classes'):
     colors = ['#1F77B4', '#FF7F0E']
@@ -40,10 +47,10 @@ def train_ub(X,y):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
 
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X)
-    plot_2d_space(X_pca, y, 'Imbalanced dataset (2 PCA components)')
-    model = svm.SVC(gamma='scale')
+    # pca = PCA(n_components=2)
+    # X_pca = pca.fit_transform(X)
+    # plot_2d_space(X_pca, y, 'Imbalanced dataset (2 PCA components)')
+    model = svm. SVC(gamma=2, C=1)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
@@ -125,73 +132,122 @@ def oversampling(X, y, items):
 
     return (X_o, y_o)
 
-lam = 2
-F_s=[]
-S_D=[]
-SOL_D=[]
-epsilon=1
-st = "under"
+def POUS(X,y,st,iter):
 
-for k in range(int(data_size)):
+    lam = 2
+    F_s=[]
+    S_D=[]
+    SOL_D=[]
+    epsilon=1
+    d1=[]
+    for data in range(len(X)):
+        d1.append([X[data][0],X[data][1],y[data]])
 
+    df = pd.DataFrame(d1, columns=['x', 'y', 'c'])
 
-    X_c = None
-    y_c = None
-
-    a_min = y.loc[y == 0].index[0]
-    a_max = y.loc[y == 0].index[-1]
-    b_min = y.loc[y == 1].index[0]
-    b_max = y.loc[y == 1].index[-1]
-
-    u_items = None
-    o_items = None
-
-    a_len = a_max - a_min
-    b_len = b_max - b_min
-
-    maj_max = a_max if a_len > b_len else b_max
-    maj_min = a_min if a_len > b_len else b_min
-
-    min_max = b_max if a_len > b_len else a_max
-    min_min = b_min if a_len > b_len else a_min
-
-    if st == "under":
-        if k * step_size < (maj_max - maj_min):
-            u_items = np.random.choice(np.arange(maj_min, maj_max), k * step_size, replace=False)
+    X=df[df.columns[:-1]]
+    y=df[df.columns[2]]
+    xa=0
+    xb=0
+    for val in y:
+        if val==1:
+            xa=xa+1
         else:
-            break
-    else:
-        if k * step_size < (min_max - min_min):
-            o_items = np.random.choice(np.arange(min_min, min_max), k * step_size, replace=False)
+            xb=xb+1
+    # print("Class A" + str(xa))
+    # print("Class B" + str(xb))
+    for k in range(0,iter):
+
+
+        X_c = None
+        y_c = None
+
+        a_min = y.loc[y == 0].index[0]
+        a_max = y.loc[y == 0].index[-1]
+        b_min = y.loc[y == 1].index[0]
+        b_max = y.loc[y == 1].index[-1]
+
+        u_items = None
+        o_items = None
+
+        a_len = a_max - a_min
+        b_len = b_max - b_min
+
+        maj_max = a_max if a_len > b_len else b_max
+        maj_min = a_min if a_len > b_len else b_min
+
+        min_max = b_max if a_len > b_len else a_max
+        min_min = b_min if a_len > b_len else a_min
+
+        if st == "under":
+            if k * step_size < (maj_max - maj_min):
+                u_items = np.random.choice(np.arange(maj_min, maj_max), k * step_size, replace=False)
+            else:
+                break
         else:
-            break
+            if k * step_size < (min_max - min_min):
+                o_items = np.random.choice(np.arange(min_min, min_max), k * step_size, replace=False)
+            else:
+                break
 
-    if st == "under":
-        X_c, y_c = undersampling(X, y, u_items)
-    else:
-        X_c, y_c = oversampling(X, y, o_items)
+        if st == "under":
+            X_c, y_c = undersampling(X, y, u_items)
+        else:
+            X_c, y_c = oversampling(X, y, o_items)
 
-    acc = train_ub(X_c,y_c)
+        acc = train_ub(X_c,y_c)
 
-    F_s.append(acc)
-    S_D.append([X_c,y_c])
-    if len(F_s)-lam > 0:
-        sum_temp=0
-        for a in range(k-lam,k):
-                    d = F_s[a] - F_s[a+1]
-                    d = d*d
-                    sum_temp = sum_temp+d
-        R = math.sqrt(sum_temp)
+        F_s.append(acc)
+        S_D.append([X_c,y_c])
+        if len(F_s)-lam > 0:
+            sum_temp=0
+            for a in range(k-lam,k):
+                        d = F_s[a] - F_s[a+1]
+                        d = d*d
+                        sum_temp = sum_temp+d
+            R = math.sqrt(sum_temp)
+            if R < 1:
+                SOL_D.append((S_D[k-1], F_s[k-1]))
 
-        if R < 0.01:
-            SOL_D.append((S_D[k-1], F_s[k-1]))
+# #for s in sorted(SOL_D, key=lambda x: x[1]):
+    plotarr=[]
+    for s in SOL_D:
+        # print(s[1])
+        plotarr.append(s[1])
+        # print(s[0][1].value_counts())
+    # plt.plot(plotarr) # plotting by columns
+    # plt.show()
+    ix=np.argmax(plotarr)
+    df=SOL_D[ix][0]
 
-#for s in sorted(SOL_D, key=lambda x: x[1]):
-plotarr=[]
-for s in SOL_D:
-    print(s[1])
-    plotarr.append(s[1])
-    print(s[0][1].value_counts())
+    X = []
+    y = []
+    Z = df[0]
+    for row in range(0, len(df[0])):
+        X.append([Z['x'].values[row],Z['y'].values[row]])
 
-plt.plot(plotarr) # plotting by columns
-plt.show()
+    for row in df[1]:
+        y.append(int(row))
+    xa = 0
+    xb = 0
+    for val in y:
+        if val == 1:
+            xa = xa + 1
+        else:
+            xb = xb + 1
+    print("Class A" + str(xa))
+    print("Class B" + str(xb))
+
+
+    return X,y,plotarr
+#df=POUS(X,y,'under')
+
+
+# groups = df.groupby('c')
+# fig, ax = plt.subplots()
+# ax.margins(0.05) # Optional, just adds 5% padding to the autoscaling
+# for name, group in groups:
+#     ax.plot(group.x, group.y, marker='o', linestyle='', ms=5, label=name)
+# ax.legend()
+#
+# plt.show()

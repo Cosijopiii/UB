@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from altair import Chart
 import matplotlib.pyplot as plt
+from sklearn.datasets.samples_generator import make_moons
+from pandas import DataFrame
 from sklearn import svm
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
@@ -85,28 +87,40 @@ def randCir(a,b,c,N,rs):
     else:
         Y=np.zeros(N)
     X=[x,y]
-    plt.scatter(x, y, s = 4)
-    plt.show()
+    # plt.scatter(x, y, s = 4)
+    # plt.show()
     return X,Y
 
 
-def genData():
-    X1,Y1=randCir(0,1,1,1000,1)
-    X2,Y2=randCir(0,1,0,1000,0)
+def genData(a,b,c1,c2):
+    N1=a
+    N2=b
+    X1, Y1 = randCir(0, 1, 1, int(N1/2),c1)
+    X2, Y2 = randCir(0, 1, 0, int(N2/2),c2)
+
+    X3, Y3 = randCir(0, 2, 1, int(N1/2), c1 )
+    X4, Y4 = randCir(0, 2, 0, int(N2/2), c2 )
+
     d1=[]
 
-    for i in range(0,100):
-        x=X1[0][i]
-        y=X1[1][i]
+    for i in range(0,int(N1/2)):
+        x = X1[0][i]
+        y = X1[1][i]
         d1.append([x, y, Y1[i]])
+        x = X3[0][i]
+        y = X3[1][i]
+        d1.append([x, y, Y1[i]])
+    for i in range(0,int(N2/2)):
         x = X2[0][i]
         y = X2[1][i]
         d1.append([x, y, Y2[i]])
-
+        x = X4[0][i]
+        y = X4[1][i]
+        d1.append([x, y, Y2[i]])
     df = pd.DataFrame(d1, columns = ['x', 'y','c'])
     return df
-
-
+#
+# df=genData(40,300,.5,0)
 # d=df.columns[:2]
 # co=df.columns[2]
 # X = df[d]
@@ -116,10 +130,22 @@ def genData():
 # fig, ax = plt.subplots()
 # ax.margins(0.05) # Optional, just adds 5% padding to the autoscaling
 # for name, group in groups:
-#     ax.plot(group.x, group.y, marker='o', linestyle='', ms=10, label=name)
+#     ax.plot(group.x, group.y, marker='o', linestyle='', ms=5, label=name)
 # ax.legend()
 #
 # plt.show()
-#
-# # df.plot(kind='scatter',x='x',y='y',c='c',color='red')
-# # plt.show()
+
+# df.plot(kind='scatter',x='x',y='y',c='c',color='red')
+# plt.show(
+def makeblob(a,b):
+    # generate 2d classification dataset
+    X, y = make_moons(n_samples=a, noise=b)
+    # scatter plot, dots colored by class value
+    df = DataFrame(dict(x=X[:, 0], y=X[:, 1], label=y))
+    colors = {0: 'red', 1: 'blue'}
+    fig, ax = plt.subplots()
+    grouped = df.groupby('label')
+    for key, group in grouped:
+        group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+    plt.show()
+    return df
